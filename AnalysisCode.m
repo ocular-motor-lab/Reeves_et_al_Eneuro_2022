@@ -3,61 +3,39 @@
 %%%%%% September/October 2022
 %%%%%% Stephanie Reeves, Otero-Millan Laboratory
 
+% This code create tables and other variables needed for FiguresAndStats.m
+% and saves them as "tables.mat"
+% You can skip this script and just load those variables directly to use
+% FiguresAndStats.m
+
 % Initialize variables 
-projectFolder = 'C:\Users\stephanie_reeves\UC Berkeley\OMlab - OM-lab-share\Projects\SaccadeDirectionsHeadTilt\Code';
-saveHere = 'C:\Users\stephanie_reeves\UC Berkeley\OMlab - OM-lab-share\Projects\SaccadeDirectionsHeadTilt\Code\FilesForManuscript';
-SubjList = ["0101", "0122", "0123", "0124", "0125", "0126", "0127", "0128", "0129", "0166", "0167", "0169", "0172", "0173"];
-subjects = {'0101', '0122', '0123', '0124', '0125', '0126', '0127', '0128', '0129', '0166',  '0167',  '0169',  '0172',  '0173'};
-numSubjList = [101, 122, 123, 124, 125, 126, 127, 128, 129, 166, 167, 169, 172, 173]'; % should match above line
+projectFolder = 'C:\Users\stephanie_reeves\UC Berkeley\OMlab - OM-lab-share\Projects\SaccadeDirectionsHeadTilt'; % update this for where your files are saved
+SubjList = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"];
 DEBUG = 0; % Set this to 1 to see plots that do not appear in manuscript 
-saveFiles = 0; % Set this to 1 if you want to save some .mat files/tables
 
-%% Load saccade and trial table
-load(fullfile(projectFolder,'saccade'))
-load(fullfile(projectFolder,'trialTable'))
+% Load saccade and trial table
+load(fullfile(projectFolder,'Code','saccade.mat'))
+load(fullfile(projectFolder,'Code','trialTable.mat'))
 
-% Get torsion stuff 
+% Torsion stuff to save later
 statarray4 = grpstats(trialTable,{'Subject','HeadTilt','ImageType','ImageTilt'},{'median'},'DataVars','median_T');
 statarray5 = grpstats(statarray4,{'Subject','HeadTilt','ImageType'},'mean','DataVars','median_median_T');
-ok = repelem(statarray5.mean_median_median_T,3);
-statarray4.mean_median_Torsion = ok;
-
-% Head Rotation stuff
-% Correct the head roll numbers bc they are inverted. With this correction,
-% a positive head roll value means a head roll toward the right shoulder.
-% Actually, we will not use this. But just FYI.
-saccade.HeadRoll_corrected = -(saccade.HeadRoll);
+statarray4.mean_median_Torsion = repelem(statarray5.mean_median_median_T,3);
 
 % Get the median head roll value for each subject for each head tilt
 % condition
 out = grpstats(saccade,{'Subject','HeadTilt'},{'median'},'DataVars','HeadRoll');
 
-% Put it into the saccade table
-HeadTilts = ["Left","Right","Upright"];
-for subj = 1:length(SubjList)
-    for tilt = 1:length(HeadTilts)
-        where = out(find(out.Subject == SubjList(subj) & out.HeadTilt == HeadTilts(tilt)),:);
-        saccade.median_HeadRoll(saccade.Subject == SubjList(subj) & saccade.HeadTilt == HeadTilts(tilt)) = table2array(where(1,4)); % the 4 here means just get the fourth col of "out" which is the head roll
-    end
-end
-
-% Save for future use
-MedianHeadTiltRightAmt = -table2array(out(find(out.HeadTilt == 'Right'),4));
-MedianHeadTiltLeftAmt = -table2array(out(find(out.HeadTilt == 'Left'),4));
-MedianHeadTiltUprightAmt = -table2array(out(find(out.HeadTilt == 'Upright'),4));
-
-% Save to table
+% Create subject table
 tab = table();
 tab.Subject = transpose(SubjList);
-tab.MedianHeadTiltRightAmt = MedianHeadTiltRightAmt;
-tab.MedianHeadTiltLeftAmt = MedianHeadTiltLeftAmt;
-tab.MedianHeadTiltUprightAmt = MedianHeadTiltUprightAmt;
+tab.MedianHeadTiltRightAmt = -table2array(out(find(out.HeadTilt == 'Right'),4));
+tab.MedianHeadTiltLeftAmt = -table2array(out(find(out.HeadTilt == 'Left'),4));
+tab.MedianHeadTiltUprightAmt = -table2array(out(find(out.HeadTilt == 'Upright'),4));
 
 
 %% Implement the circular KDE + circular cross correlation procedure. For fractals + head tilt. 
 RightOrLeft = ["Right","Left"];
-xcorrKDE_HeadUpHeadRight = [];
-xcorrKDE_HeadUpHeadLeft = [];
 
 for aheadtilt = 1:length(RightOrLeft)
     if (DEBUG)
@@ -66,6 +44,7 @@ for aheadtilt = 1:length(RightOrLeft)
     end
     
     for subj = 1:length(SubjList)
+        
         % Head right vs. Upright for fractals (all images)
         % Get the saccade direction vector that you are interested in
         h1 = saccade.Direction(find(saccade.HeadTilt == RightOrLeft(aheadtilt) & saccade.ImageType == "fractals" & saccade.Subject == SubjList(subj) & saccade.TrialNumber > 0));
@@ -86,9 +65,9 @@ for aheadtilt = 1:length(RightOrLeft)
         % Accumulate these values
         switch RightOrLeft(aheadtilt)
             case "Right"
-                xcorrKDE_HeadUpHeadRight = [xcorrKDE_HeadUpHeadRight maxlag];
+                tab.xcorrKDE_HeadUpHeadRight(asubj) = maxlag;
             case "Left"
-                xcorrKDE_HeadUpHeadLeft = [xcorrKDE_HeadUpHeadLeft maxlag];
+                tab.xcorrKDE_HeadUpHeadLeft(asubj) = maxlag;
         end
         
         % Get visualization for each subject
@@ -104,16 +83,9 @@ for aheadtilt = 1:length(RightOrLeft)
     end
 end
 
-% Save to table
-tab.xcorrKDE_HeadUpHeadRight(:,1) = xcorrKDE_HeadUpHeadRight;
-tab.xcorrKDE_HeadUpHeadLeft(:,1) = xcorrKDE_HeadUpHeadLeft;
-
 
 %% Implement circular KDE and circular cross-corr for fractals in world-referenced coordinates 
 clear vfEstimate vfEstimate2 hist1Rep hist2Rep maxlag lags x i
-
-crossCorrFractalsWorldRef_HUHR = [];
-crossCorrFractalsWorldRef_HUHL = [];
 
 for aheadtilt = 1:length(RightOrLeft)
     if (DEBUG)
@@ -142,9 +114,9 @@ for aheadtilt = 1:length(RightOrLeft)
         % Accumulate these values
         switch RightOrLeft(aheadtilt)
             case "Right"
-                crossCorrFractalsWorldRef_HUHR = [crossCorrFractalsWorldRef_HUHR maxlag];
+                tab.crossCorrFractalsWorldRef_HUHR(asubj) =  maxlag;
             case "Left"
-                crossCorrFractalsWorldRef_HUHL = [crossCorrFractalsWorldRef_HUHL maxlag];
+                tab.crossCorrFractalsWorldRef_HUHL(asubj) = maxlag;
         end
         
         if (DEBUG)
@@ -159,9 +131,7 @@ for aheadtilt = 1:length(RightOrLeft)
     end
 end
 
-% Save to table 
-tab.crossCorrFractalsWorldRef_HUHR(:,1) = crossCorrFractalsWorldRef_HUHR;
-tab.crossCorrFractalsWorldRef_HUHL(:,1) = crossCorrFractalsWorldRef_HUHL;
+
 
 %% Quantifying the Offset for Fractals -- bootstrapping error bars for ind subjects 
 RightOrLeft = ["Right","Left"];
@@ -246,8 +216,6 @@ bootstrapped_left = bootstrapped_left(idx,:);
 %% Earth upright scenes at diff head tilt -- calculate KDE distributions + do circular cross correlations
 % Do cross correlations for each subject on direction data corrected for head tilt 
 RightOrLeft = ["Right","Left"];
-crossCorrHeadUprightandRightWithImageEarthUpright = [];
-crossCorrHeadUprightandLeftWithImageEarthUpright = [];
 
 for aheadtilt = 1:length(RightOrLeft)
     if (DEBUG)
@@ -281,9 +249,9 @@ for aheadtilt = 1:length(RightOrLeft)
         % Accumulate these values
         switch RightOrLeft(aheadtilt)
             case "Right"
-                crossCorrHeadUprightandRightWithImageEarthUpright = [crossCorrHeadUprightandRightWithImageEarthUpright maxlag];
+                tab.crossCorrHeadUprightandRightWithImageEarthUpright(asubj) = maxlag;
             case "Left"
-                crossCorrHeadUprightandLeftWithImageEarthUpright = [crossCorrHeadUprightandLeftWithImageEarthUpright maxlag];
+                tab.crossCorrHeadUprightandLeftWithImageEarthUpright(asubj) =  maxlag;
         end
         
         % Get visualization for each subject
@@ -298,10 +266,6 @@ for aheadtilt = 1:length(RightOrLeft)
         
     end
 end
-
-% Save to table
-tab.crossCorrHeadUprightandRightWithImageEarthUpright(:,1) = crossCorrHeadUprightandRightWithImageEarthUpright;
-tab.crossCorrHeadUprightandLeftWithImageEarthUpright(:,1) = crossCorrHeadUprightandLeftWithImageEarthUpright;
 
 
 %% Earth upright scenes at diff head tilt -- bootstrapping error bars for ind subjects 
@@ -391,8 +355,6 @@ bootstrapped_neg30 = bootstrapped_neg30(idx,:);
 
 
 %% Image Tilt effect during head upright KDE and cross-correlation
-crossCorrHeadUprightImageTilt30and0 = [];
-crossCorrHeadUprightImageTiltneg30and0 = [];
 
 ImageTilts = [30,-30];
 
@@ -428,9 +390,9 @@ for animagetilt = 1:length(ImageTilts)
         % Accumulate these values
         switch ImageTilts(animagetilt)
             case 30
-                crossCorrHeadUprightImageTilt30and0 = [crossCorrHeadUprightImageTilt30and0 maxlag];
+                tab.crossCorrHeadUprightImageTilt30and0(subj) = maxlag;
             case -30
-                crossCorrHeadUprightImageTiltneg30and0 = [crossCorrHeadUprightImageTiltneg30and0 maxlag];
+                tab.crossCorrHeadUprightImageTiltneg30and0(subj) = maxlag;
         end
         
         % Get visualization for each subject
@@ -445,9 +407,6 @@ for animagetilt = 1:length(ImageTilts)
         
     end
 end
-
-tab.crossCorrHeadUprightImageTilt30and0(:,1) = crossCorrHeadUprightImageTilt30and0;
-tab.crossCorrHeadUprightImageTiltneg30and0(:,1) = crossCorrHeadUprightImageTiltneg30and0;
 
 
 %% Image Tilt effect during head upright -- bootstrapping error bars for ind subjects 
@@ -531,8 +490,6 @@ bootstrapped_neg30_Im = bootstrapped_neg30_Im(idx,:);
 
 
 %% Image tilt effect (scenes) for head right and left 
-crossCorrHeadRightImageTilt30and0 = [];
-crossCorrHeadRightImageTiltneg30and0 = [];
 
 ImageTilts = [30,-30];
 
@@ -568,9 +525,9 @@ for animagetilt = 1:length(ImageTilts)
         % Accumulate these values
         switch ImageTilts(animagetilt)
             case 30
-                crossCorrHeadRightImageTilt30and0 = [crossCorrHeadRightImageTilt30and0 maxlag];
+                tab.crossCorrHeadRightImageTilt30and0(subj) =  maxlag;
             case -30
-                crossCorrHeadRightImageTiltneg30and0 = [crossCorrHeadRightImageTiltneg30and0 maxlag];
+                tab.crossCorrHeadRightImageTiltneg30and0(subj) = maxlag;
         end
         
         % Get visualization for each subject
@@ -586,13 +543,8 @@ for animagetilt = 1:length(ImageTilts)
     end
 end
 
-tab.crossCorrHeadRightImageTilt30and0(:,1) = crossCorrHeadRightImageTilt30and0;
-tab.crossCorrHeadRightImageTiltneg30and0(:,1) = crossCorrHeadRightImageTiltneg30and0;
-
 
 % Do the same as above but for left head tilt... sry i'm a bad programmer
-crossCorrHeadLeftImageTilt30and0 = [];
-crossCorrHeadLeftImageTiltneg30and0 = [];
 
 ImageTilts = [30,-30];
 
@@ -628,9 +580,9 @@ for animagetilt = 1:length(ImageTilts)
         % Accumulate these values
         switch ImageTilts(animagetilt)
             case 30
-                crossCorrHeadLeftImageTilt30and0 = [crossCorrHeadLeftImageTilt30and0 maxlag];
+                tab.crossCorrHeadLeftImageTilt30and0(subj) = maxlag;
             case -30
-                crossCorrHeadLeftImageTiltneg30and0 = [crossCorrHeadLeftImageTiltneg30and0 maxlag];
+                tab.crossCorrHeadLeftImageTiltneg30and0(subj) = maxlag;
         end
         
         % Get visualization for each subject
@@ -646,33 +598,8 @@ for animagetilt = 1:length(ImageTilts)
     end
 end
 
-tab.crossCorrHeadLeftImageTilt30and0(:,1) = crossCorrHeadLeftImageTilt30and0;
-tab.crossCorrHeadLeftImageTiltneg30and0(:,1) = crossCorrHeadLeftImageTiltneg30and0;
 
 %% Save files 
-saveTheseTables = ["bootstrapped_30","bootstrapped_neg30","bootstrapped_30_Im",...
-    "bootstrapped_neg30_Im","bootstrapped_right","bootstrapped_left","tab"];
-
-if (saveFiles)
-    extention='.mat';
-    
-    for atable = 1:length(saveTheseTables)
-        name=saveTheseTables(atable);
-        matname = fullfile(saveHere, [char(name) extention]);
-        save(matname, saveTheseTables(atable));
-    end
-    
-end
-
-
-
-
-
-
-
-
-
-
-
+save(fullfile(projectFolder,"tables.mat"),"tab","statarray4","bootstrapped_30","bootstrapped_30_Im","bootstrapped_left","bootstrapped_neg30","bootstrapped_neg30_Im","bootstrapped_right");
 
 

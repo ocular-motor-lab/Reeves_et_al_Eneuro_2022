@@ -3,21 +3,19 @@
 %%%%%% September/October 2022
 
 %% Initialize variables and load .mat files
-% This script should live in a folder, "projectFolder", where another folder
-% called "FilesForManuscript" also lives. This "FilesForManuscript" folder
-% will contain many .mat files that can be used to reproduce the figures in
-% our eNeuro publication. 
+% You need to load only saccade.mat, trialTable.mat, tables.mat, and
+% VarsForFigures.mat to make the figures below
 
-projectFolder = 'C:\Users\stephanie_reeves\UC Berkeley\OMlab - OM-lab-share\Projects\SaccadeDirectionsHeadTilt\Code';
-SubjList = ["0101", "0122", "0123", "0124", "0125", "0126", "0127", "0128", "0129", "0166", "0167", "0169", "0172", "0173"];
-DEBUG = 0; % Set this to 1 to see plots that do not appear in manuscript 
+projectFolder = 'C:\Users\stephanie_reeves\UC Berkeley\OMlab - OM-lab-share\Projects\SaccadeDirectionsHeadTilt'; % update this
+SubjList = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"];
 
 % Load a file that contains a few variables needed for figures
-load(fullfile(projectFolder,'VarsForFigures'))
+load(fullfile(projectFolder,'VarsForFigures.mat'))
+load(fullfile(projectFolder,'tables.mat'))
 
 % Load saccade table and trial table 
-load(fullfile(projectFolder,'saccade'))
-load(fullfile(projectFolder,'trialTable'))
+load(fullfile(projectFolder,'saccade.mat'))
+load(fullfile(projectFolder,'trialTable.mat'))
 
 %% Head orientation tilts / numbers for manuscript 
 % Get the confidence intervals for the paper
